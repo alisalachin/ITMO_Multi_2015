@@ -13,7 +13,7 @@ class Matrix{
 private:
 	vector<vector<double>> vec;
 public:
-	Matrix(vector<vector<double>> vecIn)
+	/*Matrix(vector<vector<double>> vecIn)
 	{
 		//проверяем, что одинаковый размер у строк: 
 		for (int i = 0; i < vecIn.size(); i++)
@@ -30,7 +30,7 @@ public:
 		vector<vector<double>>::iterator iterVecIn = vecIn.begin();
 		copy(vecIn.begin(), vecIn.end(), vec.begin());
 	}
-
+	*/
 	Matrix()
 	{
 
@@ -151,6 +151,33 @@ public:
 		}
 		return os;
 	}
+	friend istream& operator>>(istream& is, Matrix& m)
+	{
+		char str[1000000];
+		char* nums;	
+		m = Matrix();
+		while (is.getline(str, 1000000))
+		{
+			nums = strtok(str, " ");
+			vector<double> vec1;
+			while (nums != NULL) {
+				vec1.push_back(atof(nums));
+				nums = strtok(NULL, " ");
+			}
+			m.vec.push_back(vec1);
+		}
+		//проверяем, что одинаковый размер у строк: 
+		for (int i = 0; i < m.vec.size(); i++)
+		{
+			if (m.vec[i].size() != m.vec[0].size())
+			{
+				cout << "Неккоректные входные данные для создания матрицы";
+				return is;
+			}
+		}
+
+		return is;
+	}
 };
 
 
@@ -159,73 +186,48 @@ int main(int argc, char *argv[])
 {
 
 	setlocale(LC_ALL, "Russian");
-	/*if (argc != 3) {
+	if (argc != 4) {
 		cout << "Неверное количество агруметов";
 		return 0;
-	}*/
+	}
+	
+	ifstream fin1(argv[1]);
+	ifstream fin2(argv[2]);
+	ofstream fout(argv[3]);
+
 	int N, M, N2, M2;
 	clock_t begin, end;
-
-	/*ofstream fout("in41.txt");
-	for (int i = 0; i < 4000; i++) {
-		for (int j = 0; j < 999; j++) {
-			fout << "2 ";
-		}
-		fout << "2" << endl;
-	}
-	fout.close();*/
 	
 	//cout << argv[1] << argv[2] << endl;
-	FILE* f1 = fopen(argv[1], "r");
-	FILE* f2 = fopen(argv[2], "r");
+	
+	
+	/*
 	ofstream fout("out.txt");
-//	FILE* f1 = fopen("in41.txt", "r");
-//	FILE* f2 = fopen("in1.txt", "r");
-	if ((f1 == NULL) || (f2 == NULL))
+	ifstream fin1("1.txt");
+	ifstream fin2("2.txt");*/
+
+	if ((!fin1.is_open()) || (!fin2.is_open())) 
 	{
 		cout << "Файл(ы) входной(ые) не найден(ы)";
 		return 0;
 	}
+	
+	Matrix res1;
+	fin1 >> res1;
+	//cout << res1 << endl;
+	Matrix res2;
+	fin2 >> res2;
+	//cout << res2<< endl;
 
-
-	char str[1000000];
-	char* nums;
-	vector<vector<double>> myVec1;						//создаем первую матрицу 
-	while (!feof(f1))
-	{
-		fgets(str, 10000000, f1);
-		nums = strtok(str, " ");
-		vector<double> vec;
-		while (nums != NULL) {
-			vec.push_back(atof(nums));
-			nums = strtok(NULL, " ");
-		}
-		myVec1.push_back(vec);
-	}
-
-	Matrix matrix1(myVec1);
-	//cout << matrix1;
-	//cout << endl;
-	vector<vector<double>> myVec2;						//создаем вторую матрицу 
-	while (!feof(f2))
-	{
-		fgets(str, 10000000, f2);
-		nums = strtok(str, " ");
-		vector<double> vec;
-		while (nums != NULL) {
-			vec.push_back(atof(nums));
-			nums = strtok(NULL, " ");
-		}
-		myVec2.push_back(vec);
-	}
-	Matrix matrix2(myVec2);
-	//cout << matrix2 << endl;
 	
 	begin = clock();
-	Matrix matrix3 = matrix1 * matrix2;							// перемножаем матрицы 
+	Matrix matrix3 = res1 * res2;							// перемножаем матрицы 
 	end = clock();
 	fout << matrix3 << endl;
 	cout << (end - begin) / (double)CLOCKS_PER_SEC<<endl;
+
+	fin1.close();
+	fin2.close();
 	fout.close();
 	
 	return 0;
