@@ -42,7 +42,8 @@ public:
 		vec_res.vec.resize(this->vec.size());
 		if ((vec_other.vec.size() != this->vec.size()) || (vec_other.vec[0].size() != this->vec[0].size()))
 		{
-			cout << "Сложение не возможно. Размеры матриц не совпадают.";
+			throw exception("Addition impossible. Sizes of the matrices are not suitable.");
+			//cout << "Сложение не возможно. Размеры матриц не совпадают.";
 			return vec_res;
 		}
 		for (int i = 0; i < this->vec.size(); i++)
@@ -61,7 +62,8 @@ public:
 		vec_res.vec.resize(this->vec.size());
 		if ((vec_other.vec.size() != this->vec.size()) || (vec_other.vec[0].size() != this->vec[0].size()))
 		{
-			cout << "Вычитание не возможно. Размеры матриц не совпадают";
+			throw exception("Subtraction is impossible. Sizes of the matrices are not suitable.");
+		//	cout << "Вычитание не возможно. Размеры матриц не совпадают";
 			return vec_res;
 		}
 		for (int i = 0; i < this->vec.size(); i++)
@@ -80,7 +82,8 @@ public:
 		vec_res.vec.resize(this->vec.size());
 		if (vec_other.vec.size() != this->vec[0].size())
 		{
-			cout << "Умножение не возможно. Размеры матриц не совпадают.";
+			throw exception("Multiplication is impossible.Sizes of the matrices are not suitable.");
+		//	cout << "Умножение не возможно. Размеры матриц не совпадают.";
 			return vec_res;
 		}
 		if (this->vec.size() >= vec_other.vec[0].size())
@@ -171,7 +174,7 @@ public:
 		{
 			if (m.vec[i].size() != m.vec[0].size())
 			{
-				cout << "Неккоректные входные данные для создания матрицы";
+				throw exception("lines in matrix hasn't same size");
 				return is;
 			}
 		}
@@ -200,8 +203,8 @@ int main(int argc, char *argv[])
 	
 	//cout << argv[1] << argv[2] << endl;
 	
-	
 	/*
+	
 	ofstream fout("out.txt");
 	ifstream fin1("1.txt");
 	ifstream fin2("2.txt");*/
@@ -213,12 +216,12 @@ int main(int argc, char *argv[])
 	}
 	
 	Matrix res1;
-	fin1 >> res1;
-	//cout << res1 << endl;
-	Matrix res2;
-	fin2 >> res2;
-	//cout << res2<< endl;
-
+	try {
+		fin1 >> res1;
+		//cout << res1 << endl;
+		Matrix res2;
+		fin2 >> res2;
+		//cout << res2<< endl;
 	
 	begin = clock();
 	Matrix matrix3 = res1 * res2;							// перемножаем матрицы 
@@ -226,6 +229,10 @@ int main(int argc, char *argv[])
 	fout << matrix3 << endl;
 	cout << (end - begin) / (double)CLOCKS_PER_SEC<<endl;
 
+	} catch (exception & e)
+	{
+		cout << e.what();
+	}
 	fin1.close();
 	fin2.close();
 	fout.close();
