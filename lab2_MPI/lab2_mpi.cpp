@@ -34,7 +34,7 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 	int size;
 	int id;
 	double normR=1.0;
-	MPI_Init(&argc, &argv);
+	
 	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -56,7 +56,6 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 	double time;
 	double norm; // норма, определяемая как наибольшая разность компонент столбца иксов соседних итераций.
 	
-	vector<double> TempX(N);
 	if (id == 0) {
 		time = MPI_Wtime();
 	}
@@ -66,21 +65,21 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 	}
 	do {
 		for (int i = id; i < N; i+=size) {
-			TempX[i] = F[i];
+			XProc[i] = F[i];
 			for (int g = 0; g < N; g++) {
 				if (i != g)
-					TempX[i] -= A[i][g] * X[g];
+					XProc[i] -= A[i][g] * X[g];
 			}
-			TempX[i] /= A[i][i];
+			XProc[i] /= A[i][i];
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
-		norm = abs(X[0] - TempX[0]);
+		norm = abs(X[id] - XProc[id]);
 		for (int h = id; h < N; h+=size) {
-			if (abs(X[h] - TempX[h]) > norm)
+			if (abs(X[h] - XProc[h]) > norm)
 			{
-				norm = abs(X[h] - TempX[h]);
+				norm = abs(X[h] - XProc[h]);
 			}
-			XProc[h] = TempX[h];
+			
 		}
 		
 		MPI_Reduce(&norm, &normR, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
@@ -98,31 +97,44 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 int _tmain(int argc, char** argv)
 {
 	setlocale(LC_ALL, "Russian");
+	int id, size;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &id);
 	time_t begin, end;
 	int N, M, M2;
-	
 	if (argc != 5) {
-		cout << "Incorrect number of arguments";
+		if (id == 0) {
+			cout << "Incorrect number of arguments";
+		}
+		MPI_Finalize();
 		return 0;
 	}
-	
 	ifstream fin1(argv[1]);	//"in300.txt"
 	ifstream fin2(argv[2]);//"in2_300.txt"
 	double eps = atof(argv[3]);
 	if ((eps <= 0)||(eps>=1)){
-		cout << "eps must be greater than 0 and less than 1";
+		if (id == 0) {
+			cout << "eps must be greater than 0 and less than 1";
+		}
+		MPI_Finalize();
 		return 0;
 	}
 	ofstream fout(argv[4]);//"out.txt"
 
 	if (!fin1.is_open() || !fin2.is_open())
 	{
-		cout << "Files not found"<<endl;
+		if (id == 0) {
+			cout << "Files not found" << endl;
+		}
+		MPI_Finalize();
 		return 0;
 	}
 	fin1 >> M >> N;
 	if (N != M + 1) {
-		cout << "N!=M+1 or an incorrect file format"<<endl;
+		if (id == 0) {
+			cout << "N!=M+1 or an incorrect file format" << endl;
+		}
+		MPI_Finalize();
 		return 0;
 	}
 	vector<vector<double>> matrix(M);						//создаем матрицу 
@@ -139,7 +151,10 @@ int _tmain(int argc, char** argv)
 	}
 	fin2 >> M2;
 	if (M != M2) {
-		cout << "Number of elements in the files does not match" << endl;
+		if (id == 0) {
+			cout << "Number of elements in the files does not match" << endl;
+		}
+		MPI_Finalize();
 		return 0;
 	}
 	
@@ -147,14 +162,15 @@ int _tmain(int argc, char** argv)
 	{
 		fin2 >> x[i];
 	}
-	int id;
 	try {
 		x = Jacobi(M, matrix, b, x, argc, argv, eps);
 		MPI_Comm_rank(MPI_COMM_WORLD, &id);
 	}
 	catch (invalid_argument e) {
-		
-		if (id == 1){ cout << e.what(); }
+		if (id == 0){
+			cout << e.what();
+		}
+		MPI_Finalize();
 		return 0;
 	}
 	if (id == 0){
