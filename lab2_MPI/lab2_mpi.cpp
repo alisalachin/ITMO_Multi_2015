@@ -30,9 +30,18 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 	if (F.size() == 1) {
 		return F;
 	}
+
+	int size;
+	int id;
+	double normR=1.0;
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &id);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	//провекра условия сходимости
-	for (int i = 0; i < F.size(); i++) {   
-		int sum=0;
+	
+	for (int i = id; i < F.size(); i+=size) {   
+		double sum = 0.0;
 		for (int j = 0; j < F.size(); j++) {
 			if (i != j) {
 				sum += A[i][j];
@@ -42,19 +51,21 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 			throw invalid_argument("Matrix does not converge");
 		}
 	}
-	int size;
-	int id;
+	MPI_Barrier(MPI_COMM_WORLD);
 	int got_x = 0;
 	double time;
 	double norm; // норма, определяемая как наибольшая разность компонент столбца иксов соседних итераций.
-	MPI_Init(&argc, &argv);
-	MPI_Comm_rank(MPI_COMM_WORLD, &id);
+	
 	vector<double> TempX(N);
 	if (id == 0) {
 		time = MPI_Wtime();
 	}
+	vector<double> XProc(N);
+	for (int i=0; i < N; i++){
+		XProc[i] = 0.0;
+	}
 	do {
-		for (int i = 0; i < N; i++) {
+		for (int i = id; i < N; i+=size) {
 			TempX[i] = F[i];
 			for (int g = 0; g < N; g++) {
 				if (i != g)
@@ -62,26 +73,24 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 			}
 			TempX[i] /= A[i][i];
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 		norm = abs(X[0] - TempX[0]);
-		for (int h = 0; h < N; h++) {
+		for (int h = id; h < N; h+=size) {
 			if (abs(X[h] - TempX[h]) > norm)
 			{
 				norm = abs(X[h] - TempX[h]);
 			}
-			X[h] = TempX[h];
+			XProc[h] = TempX[h];
 		}
-		MPI_Bcast(&X[0], N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		if (norm <= eps) {
-			got_x = 1;
-			MPI_Bcast(&got_x, 1, MPI_INT, 0, MPI_COMM_WORLD);
-		}
-	//	cout << norm;
-	} while (got_x==0);
+		
+		MPI_Reduce(&norm, &normR, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+		MPI_Reduce(&XProc[0], &X[0], N, MPI_DOUBLE,MPI_SUM, 0, MPI_COMM_WORLD);
+	} while (normR <= eps);
 	if (id == 0) {
 		time = MPI_Wtime()-time;
 		cout << time<<endl;
 	}
-	MPI_Finalize();
+	
 	return X;
 }
 
@@ -138,21 +147,26 @@ int _tmain(int argc, char** argv)
 	{
 		fin2 >> x[i];
 	}
-	
+	int id;
 	try {
 		x = Jacobi(M, matrix, b, x, argc, argv, eps);
+		MPI_Comm_rank(MPI_COMM_WORLD, &id);
 	}
 	catch (invalid_argument e) {
-		cout << e.what();
+		
+		if (id == 1){ cout << e.what(); }
 		return 0;
 	}
-	
-	fout << M << endl;
-	for (int i = 0; i < M; i++) {
-		fout << x[i] << endl;
+	if (id == 0){
+		fout << M << endl;
+		for (int i = 0; i < M; i++) {
+		//	cout << x[i] << endl;
+			fout << x[i] << endl;
+		}
+		fin1.close();
+		fin2.close();
+		fout.close();
 	}
-	fin1.close();
-	fin2.close();
-	fout.close();
+	MPI_Finalize();
 	return 0;
 }
