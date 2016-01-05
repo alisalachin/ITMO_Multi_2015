@@ -27,9 +27,6 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 	if ((F.size() != A.size()) || (F.size() != A[0].size()) || (F.size() != X.size())) {
 		throw invalid_argument("Sizes do not match");
 	}
-	if (F.size() == 1) {
-		return F;
-	}
 
 	int size;
 	int id;
@@ -39,8 +36,8 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	//провекра условия сходимости
-	
-	for (int i = id; i < F.size(); i+=size) {   
+
+	for (int i = id; i < F.size(); i+=size) { 
 		double sum = 0.0;
 		for (int j = 0; j < F.size(); j++) {
 			if (i != j) {
@@ -52,9 +49,10 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 		}
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
+
 	int got_x = 0;
 	double time;
-	double norm; // норма, определяемая как наибольшая разность компонент столбца иксов соседних итераций.
+	double norm=DBL_MIN; // норма, определяемая как наибольшая разность компонент столбца иксов соседних итераций.
 	
 	if (id == 0) {
 		time = MPI_Wtime();
@@ -64,24 +62,31 @@ vector<double> Jacobi(int N, vector<vector<double>> A, vector<double> F, vector<
 		XProc[i] = 0.0;
 	}
 	do {
+		
 		for (int i = id; i < N; i+=size) {
+
 			XProc[i] = F[i];
 			for (int g = 0; g < N; g++) {
 				if (i != g)
 					XProc[i] -= A[i][g] * X[g];
 			}
+
 			XProc[i] /= A[i][i];
+
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
-		norm = abs(X[id] - XProc[id]);
+		if (id < N) {
+			norm = abs(X[id] - XProc[id]);
+		}
+		
 		for (int h = id; h < N; h+=size) {
 			if (abs(X[h] - XProc[h]) > norm)
 			{
 				norm = abs(X[h] - XProc[h]);
 			}
 			
+			
 		}
-		
 		MPI_Reduce(&norm, &normR, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 		MPI_Reduce(&XProc[0], &X[0], N, MPI_DOUBLE,MPI_SUM, 0, MPI_COMM_WORLD);
 	} while (normR <= eps);
@@ -120,7 +125,7 @@ int _tmain(int argc, char** argv)
 		return 0;
 	}
 	ofstream fout(argv[4]);//"out.txt"
-
+	
 	if (!fin1.is_open() || !fin2.is_open())
 	{
 		if (id == 0) {
@@ -162,6 +167,7 @@ int _tmain(int argc, char** argv)
 	{
 		fin2 >> x[i];
 	}
+	
 	try {
 		x = Jacobi(M, matrix, b, x, argc, argv, eps);
 		MPI_Comm_rank(MPI_COMM_WORLD, &id);
